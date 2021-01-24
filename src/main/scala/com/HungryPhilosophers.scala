@@ -2,7 +2,7 @@ package com
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
-object ActorLvl3 extends App {
+object HungryPhilosophers extends App {
   var forksOnTable = 5
   val philosopherAtTheTable = List(
     new Philosopher("Aristotle"),
@@ -10,7 +10,6 @@ object ActorLvl3 extends App {
     new Philosopher("Platon"),
     new Philosopher("Confucius"),
     new Philosopher("Dekart")
-
   )
 
   val systemActors = ActorSystem("SystemActors")
@@ -117,7 +116,7 @@ object ActorLvl3 extends App {
     }
   }
 
-}
+
 
 class Philosopher(name: String) {
   private var satiety = false
@@ -163,4 +162,5 @@ class Philosopher(name: String) {
   def getMeals() = {
     numberOfMeals
   }
+}
 }
