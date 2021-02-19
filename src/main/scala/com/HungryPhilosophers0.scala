@@ -2,9 +2,11 @@ package com
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
-object HungryPhilosophers extends App {
-  var forksOnTable = 5
-  val philosopherAtTheTable = List(
+import scala.collection.mutable.ListBuffer
+
+object HungryPhilosophers0 extends App {
+  private val forksOnTable = ListBuffer(0, 1, 2, 3, 4)
+  private val philosopherAtTheTable = List(
     new Philosopher("Aristotle"),
     new Philosopher("Kant"),
     new Philosopher("Platon"),
@@ -12,8 +14,8 @@ object HungryPhilosophers extends App {
     new Philosopher("Dekart")
   )
 
-  val systemActors = ActorSystem("SystemActors")
-  val actorWaiter = systemActors.actorOf(Props[Waiter])
+  private val systemActors = ActorSystem("SystemActors")
+  private val actorWaiter = systemActors.actorOf(Props[Waiter])
 
   println("Здравствуйте, коллеги садитесь за стол и начнём же обсуждения проблем мироздания!")
   println()
@@ -34,15 +36,16 @@ object HungryPhilosophers extends App {
 
   case class EndEating(philosopher: Philosopher)
 
-  case class TheEnd()
+  case class TheEnd(philosopher: Philosopher)
 
   class Waiter extends Actor {
     override def receive: Receive = {
       case AskWaiter(philosopher, refOnThisActor) =>
-        if (forksOnTable > 2) {
-          forksOnTable -= 1
+        if (forksOnTable.length > 2) {
+          forksOnTable.remove(0)
           println(philosopher.getName() + " Получил разрешение взять вилку")
           systemActors.actorOf(Props[Etiquette]) ! TakeLeftFork(philosopher, context.actorOf(Props[Etiquette]))
+
         } else {
           refOnThisActor ! AskWaiter(philosopher, refOnThisActor)
         }
@@ -52,8 +55,8 @@ object HungryPhilosophers extends App {
   class Etiquette extends Actor {
     override def receive: Receive = {
       case TakeLeftFork(philosopher: Philosopher, refOnThisActor: ActorRef) =>
-        if (forksOnTable > 0) {
-          forksOnTable -= 1
+        if (forksOnTable.length > 0) {
+          forksOnTable.remove(forksOnTable.length - 1)
           println()
           philosopher.takeLeftFork()
           println(philosopher.getName() + " Взял левую вилку")
@@ -72,20 +75,13 @@ object HungryPhilosophers extends App {
         println()
         philosopher.putLeftFork()
         println(philosopher.getName() + " Положил левую вилку")
-        forksOnTable += 1
+        forksOnTable.addOne(1)
       case PutRightFork(philosopher: Philosopher) =>
         println()
         philosopher.putRightFork()
         println(philosopher.getName() + " Положил правую вилку")
-        forksOnTable += 1
-        if (philosopher.getMeals() == 5) {
-          philosopher.makeFull()
-          println(philosopher.getName() + " наелся")
-          sender() ! TheEnd
-        }
-        else {
-          actorWaiter ! AskWaiter(philosopher, actorWaiter)
-        }
+        forksOnTable.addOne(0)
+        sender() ! TheEnd(philosopher)
     }
   }
 
@@ -101,66 +97,61 @@ object HungryPhilosophers extends App {
         }
 
       case EndEating(philosopher: Philosopher) =>
-        philosopher.addOneMeals()
         println()
         println(philosopher.getName() + " Закончил трапезу")
         systemActors.actorOf(Props[Etiquette]) ! PutLeftFork(philosopher)
         systemActors.actorOf(Props[Etiquette]) ! PutRightFork(philosopher)
 
-      case TheEnd =>
+      case TheEnd(philosopher:Philosopher) =>
+        philosopher.makeFull()
+        println(philosopher.getName() + " наелся")
         if (philosopherAtTheTable.forall(x => x.getSatiety())) {
           println()
+          println(forksOnTable)
           println("Отличная посидели ребята, всё было очень вкусно, всем спасибо, до свидания!")
           context.system.terminate()
         }
     }
   }
 
+  class Philosopher(name: String) {
+    private var satiety = false
+
+    private var numberOfFork = 0
+
+    def getNumberOfFork() = {
+      numberOfFork
+    }
+
+    def takeLeftFork() = {
+      numberOfFork += 1
+    }
+
+    def putLeftFork() = {
+      numberOfFork -= 1
+    }
+
+    def takeRightFork() = {
+      numberOfFork += 1
+    }
+
+    def putRightFork() = {
+      numberOfFork -= 1
+    }
+
+    def getName(): String = {
+      name
+    }
+
+    def makeFull(): Unit = {
+      satiety = true
+    }
+
+    def getSatiety(): Boolean = {
+      satiety
+    }
 
 
-class Philosopher(name: String) {
-  private var satiety = false
-  private var numberOfMeals = 0
-  private var numberOfFork = 0
-
-  def getNumberOfFork() = {
-    numberOfFork
   }
 
-  def takeLeftFork() = {
-    numberOfFork += 1
-  }
-
-  def putLeftFork() = {
-    numberOfFork -= 1
-  }
-
-  def takeRightFork() = {
-    numberOfFork += 1
-  }
-
-  def putRightFork() = {
-    numberOfFork -= 1
-  }
-
-  def getName(): String = {
-    name
-  }
-
-  def makeFull(): Unit = {
-    satiety = true
-  }
-
-  def getSatiety(): Boolean = {
-    satiety
-  }
-
-  def addOneMeals(): Unit = {
-    numberOfMeals += 1
-  }
-
-  def getMeals() = {
-    numberOfMeals
-  }
-}
 }
